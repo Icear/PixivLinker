@@ -30,13 +30,13 @@ public interface PixivMember{
      * 获得会员关注列表
      * @return 被关注的会员的数组
      */
-    PMember[] getConcernedList();//获得会员关注列表
+    PixivMember[] getConcernedList();//获得会员关注列表
 
     /**
      * 获得会员粉丝列表
      * @return 粉丝会员的数组
      */
-    PMember[] getFollowedList();//获得会员粉丝列表
+    PixivMember[] getFollowedList();//获得会员粉丝列表
 
     /**
      * 获得会员收藏作品列表
