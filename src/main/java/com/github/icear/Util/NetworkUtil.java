@@ -17,48 +17,36 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-
+//TODO 修正EXCEPTION的抛出位置
 /**
  * Created by icear.
  */
 public class NetworkUtil {
     private static Logger logger = LogManager.getLogger(NetworkUtil.class.getName());
 
-    public static HttpEntity httpGet(@NotNull CloseableHttpClient httpClient, @NotNull String url, @NotNull Iterable<? extends NameValuePair> parameters) {
+    public static HttpEntity httpGet(@NotNull CloseableHttpClient httpClient, @NotNull String url, Iterable<? extends NameValuePair> parameters) {
 
         //准备Get参数
-        String strParams = null;//转换为键值对
-        try {
-            strParams = EntityUtils.toString(new UrlEncodedFormEntity(parameters, Consts.UTF_8));
-        } catch (IOException e) {
-            e.printStackTrace();
-            //TODO 解码失败错误处理
-        }
+        String strParams = parameters != null?("?" + generateParameters(parameters)):null;//转换为键值对
 
-        //生成GET请求
-        HttpGet httpGet = new HttpGet(url + "?" + strParams);
+        //生成Get请求
+        HttpGet httpGet = new HttpGet(url + strParams);
 
-        //执行GET请求
+        //执行Get请求
         logger.debug("Execute httpGet to " + httpGet.getURI());
         return executeRequest(httpClient,httpGet);
     }
 
-    public static HttpEntity httpPost(@NotNull CloseableHttpClient httpClient, @NotNull String url, @NotNull Iterable<? extends NameValuePair> parameters, Iterable<? extends NameValuePair> postList){
+    public static HttpEntity httpPost(@NotNull CloseableHttpClient httpClient, @NotNull String url, Iterable<? extends NameValuePair> parameters, Iterable<? extends NameValuePair> postList){
 
-        //准备POST参数
-        String strParam = null;//转化键值对
-        try {
-            strParam = EntityUtils.toString(new UrlEncodedFormEntity(parameters, Consts.UTF_8));
-        } catch (IOException e) {
-            e.printStackTrace();
-            //TODO 解码失败错误处理
-        }
+        //准备Post参数
+        String strParam = parameters != null?("?" + generateParameters(parameters)):null;//转换为键值对
 
-        //准备POST数据
+        //准备Post数据
         UrlEncodedFormEntity postData = new UrlEncodedFormEntity(postList, Consts.UTF_8);
 
-        //生成POST请求
-        HttpPost httpPost = new HttpPost(url + "?" + strParam);
+        //生成Post请求
+        HttpPost httpPost = new HttpPost(url + strParam);
         httpPost.setEntity(postData);//设置postData
 
         //执行Post请求
@@ -66,17 +54,38 @@ public class NetworkUtil {
         return executeRequest(httpClient,httpPost);
     }
 
-    private static HttpEntity executeRequest(CloseableHttpClient httpClient, HttpUriRequest httpRequest){
-        try (CloseableHttpResponse httpPostResponse = httpClient.execute(httpRequest)) {
-            if (httpPostResponse.getStatusLine().getStatusCode() != 200) {
-                //TODO 请求失败处理
-                return null;
-            }
-            //请求成功
-            return httpPostResponse.getEntity();
+    private static String generateParameters(@NotNull Iterable<? extends NameValuePair> parameters){
+        try {
+            return EntityUtils.toString(new UrlEncodedFormEntity(parameters, Consts.UTF_8));
         } catch (IOException e) {
+            //解码失败错误处理
+            logger.error("Parameter encoding error");
             e.printStackTrace();
-            //TODO 错误处理
+            logger.debug("parameter: ");
+            logger.debug(parameters);
+            return null;
+        }
+    }
+
+    private static HttpEntity executeRequest(CloseableHttpClient httpClient, HttpUriRequest httpRequest){
+        try (CloseableHttpResponse httpResponse = httpClient.execute(httpRequest)) {
+            if (httpResponse.getStatusLine().getStatusCode() != 200) {
+                //请求失败处理
+                logger.error("Network request error ,response code: " + httpResponse.getStatusLine().getStatusCode());
+                logger.debug("Request: ");
+                logger.debug(httpRequest);
+                logger.debug("Response: ");
+                logger.debug(httpResponse);
+                return null;
+            }else {
+                return httpResponse.getEntity();//请求成功
+            }
+        } catch (IOException e) {
+            //错误处理
+            logger.error("Network request error during executing request");
+            e.printStackTrace();
+            logger.debug("Request: ");
+            logger.debug(httpRequest);
             return null;
         }
     }

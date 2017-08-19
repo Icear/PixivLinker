@@ -1,7 +1,5 @@
 package com.github.icear;
 
-import java.net.CookieStore;
-
 /**
  * Created by icear.
  * 账号模块
@@ -19,5 +17,5 @@ public interface PixivUser extends PixivMember {
      * 获得登陆后的Cookie，相当于令牌
      * @return 当前用户登陆身份的cookie
      */
-    CookieStore getCookieToken();//获得登陆后的Cookie，相当于令牌
+    org.apache.http.client.CookieStore getCookieToken();//获得登陆后的Cookie，相当于令牌
 }
