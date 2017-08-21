@@ -1,5 +1,9 @@
 package com.github.icear;
 
+import org.apache.http.client.CookieStore;
+
+import java.io.IOException;
+
 /**
  * Created by icear.
  * 账号模块
@@ -17,5 +21,17 @@ public interface PixivUser extends PixivMember {
      * 获得登陆后的Cookie，相当于令牌
      * @return 当前用户登陆身份的cookie
      */
-    org.apache.http.client.CookieStore getCookieToken();//获得登陆后的Cookie，相当于令牌
+    CookieStore getCookieToken();//获得登陆后的Cookie，相当于令牌
+
+    /**
+     * 获得用户的关注列表（公开部分）
+     * @return 被关注的用户数组
+     */
+    Object[] getShowedConcernedList() throws IOException;//获得用户的关注列表（公开部分）
+
+    /**
+     * 获得用户的关注列表（非公开部分）
+     * @return 被关注的用户数组
+     */
+    PixivMember[] getHiddenConcernedList() throws IOException;//获得用户的关注列表（非公开部分）
 }
