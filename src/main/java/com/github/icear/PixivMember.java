@@ -1,7 +1,5 @@
 package com.github.icear;
 
-import java.io.IOException;
-
 /**
  * Created by icear.
  * 会员模块
@@ -28,11 +26,11 @@ public interface PixivMember{
      */
     byte[] getImage();//获得会员头像
 
-    /**
-     * 获得会员关注列表
-     * @return 被关注的会员的数组
-     */
-    PixivMember[] getConcernedList() throws IOException;//获得会员关注列表
+//    /**
+//     * 获得会员关注列表
+//     * @return 被关注的会员的数组
+//     */
+//    PixivMember[] readConcernedList() throws IOException;//获得会员关注列表
 
     /**
      * 获得会员粉丝列表

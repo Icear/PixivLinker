@@ -1,5 +1,6 @@
 package com.github.icear;
 
+import com.github.icear.Util.ConvertUtil;
 import com.github.icear.Util.NetworkUtil;
 import com.google.gson.Gson;
 
@@ -19,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,6 +44,11 @@ import java.util.Map;
 
 public class Pixiv{
     private static Logger logger = LogManager.getLogger(Pixiv.class.getName());
+
+    private static final int MODE_SHOW = 297;
+    private static final int MODE_HIDE = 372;
+    private static final int MODE_BOTH_SHOW_AND_HIDE = 887;
+
     /**
      * 登陆函数
      * 传入用户名与密码执行登陆，函数包含网络访问代码，建议放置在线程中执行
@@ -175,7 +182,7 @@ public class Pixiv{
             if(status.equals("success")){
                 //登陆成功
                 result.setSucceed(true);
-                result.setPixivUser(new PUser(cookieStore));
+                result.setPixivUser(generatePUser(cookieStore));
                 logger.info("Login result: succeed");
             }
 
@@ -213,5 +220,224 @@ public class Pixiv{
         return result;
     }
 
+    /**
+     * 获得用户自身的关注列表
+     * @param user 用户对象
+     * @param mode 读取模式,传入预定义的常量，MODE_SHOW表示读取公开的关注列表，
+     *             MODE_HIDE表示读取隐藏的关注列表，MODE_BOTH_SHOW_AND_HIDE表示读取两者（公开部分在前）
+     * @return 用户关注列表
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivMember[] getConcernedMemberList(@NotNull PixivUser user, @NotNull int mode) throws IOException {
+        //登陆身份下查看自己的关注列表，公开关注
+        List<PMember> pMembers = new ArrayList<>();
 
+        switch (mode){
+            case MODE_BOTH_SHOW_AND_HIDE:
+                /*获得公开关注的用户*/
+                readConcernedList(user.getCookieToken(),pMembers,true);
+                /*获得隐藏关注的用户*/
+                readConcernedList(user.getCookieToken(),pMembers,false);
+                break;
+            case MODE_SHOW:
+                /*获得公开关注的用户*/
+                readConcernedList(user.getCookieToken(),pMembers,true);
+                break;
+            case MODE_HIDE:
+                /*获得隐藏关注的用户*/
+                readConcernedList(user.getCookieToken(),pMembers,false);
+                break;
+        }
+
+        /* 返回 */
+        logger.info("get User Concerned List result: " + pMembers.size());
+        return (PMember[]) pMembers.toArray();
+    }
+
+    /**
+     * 以用户的身份获得某个成员的关注列表
+     * @param user 用户对象
+     * @param member 要获取列表的目标成员
+     * @return 用户关注列表
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivMember[] getConcernedMemberList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
+        //TODO 未完成
+        return new PMember[0];
+    }
+
+
+    /**
+     * 以user的身份读取id目标的会员信息
+     * @param user user对象
+     * @param pixivId pixivId
+     * @return 会员信息对象PixivMember
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivMember getMember(@NotNull PixivUser user,@NotNull int pixivId) throws IOException {
+        return generatePMember(user.getCookieToken(),pixivId);
+    }
+
+
+
+
+
+
+
+
+    /**
+     * 根据用户令牌生成PUser类
+     * @param cookieToken cookie令牌
+     * @return PUser对象
+     * @throws IOException 网络IO或数据处理异常
+     */
+    private static PUser generatePUser(@NotNull CookieStore cookieToken) throws IOException {
+        int id = -1;
+        String name = null;
+        byte[] image = null;
+
+        //使用cookie进入P站首页，即可获得用户信息
+        try(CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()){//生成httpClient
+            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient,"https://www.pixiv.net/",null);
+            String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
+            Document document = Jsoup.parse(response);
+            Element userProfile = document.getElementsByAttributeValue("class","profile").first();
+            Element userImageContainer = userProfile.getElementsByAttributeValue("class","_user-icon size-40 cover-texture js-click-trackable-later").first();
+            Element userInfoContainer = userProfile.getElementsByAttributeValue("class","user-name js-click-trackable-later").first();
+
+            //获得用户ID
+
+            id = Integer.parseInt(userInfoContainer.attr("href").substring("https://www.pixiv.net/member.php?id=".length() - 1));//截取id
+            //获得用户名
+            name = userInfoContainer.html();
+
+            String imageUrlTemp = userImageContainer.attr("style");
+            String imageUrl = imageUrlTemp.substring("background-image: url(".length() - 1,imageUrlTemp.length() - 2);//截取
+            HttpEntity imageEntity = NetworkUtil.httpGet(httpClient,imageUrl,null);
+            if(imageEntity != null){
+                //获得用户头像
+                image = ConvertUtil.toByteArray(imageEntity.getContent());
+            }
+        }
+        return new PUser(cookieToken,id,name,image);
+    }
+
+    /**
+     * 根据用户令牌和目标会员id生成PMember类
+     * @param cookieToken cookie令牌
+     * @return PUser对象
+     * @throws IOException 网络IO或数据处理异常
+     */
+    private static PMember generatePMember(CookieStore cookieToken, int id) throws IOException {
+        String name = null;
+        byte[] image = null;
+
+        //根据id进行网络访问，获取作者信息
+        List<NameValuePair> parameters = new ArrayList<>();
+        parameters.add(new BasicNameValuePair("id",String.valueOf(id)));
+
+        try(CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()) {
+            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient,"https://www.pixiv.net/member.php",parameters);
+            String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
+
+            //解析数据
+            Document document = Jsoup.parse(response);
+            Element userContainer = document.getElementsByAttributeValue("class","_unit profile-unit").first();
+            Element userElement = userContainer.getElementsByAttributeValue("class","user-link").first();
+            Element userImageElement = userElement.getElementsByAttributeValue("class","user-image").first();
+            Element userNameElement = userElement.getElementsByTag("h1").first();
+            name = userNameElement.html();
+
+            String imageUrl = userImageElement.attr("src");
+            HttpEntity imageEntity = NetworkUtil.httpGet(httpClient,imageUrl,null);
+            if(imageEntity != null){
+                image = ConvertUtil.toByteArray(imageEntity.getContent());
+            }
+        }
+
+        return new PMember(id,name,image);
+    }
+
+
+
+
+
+
+    /**
+     * 读取用户关注的用户
+     * @param pMembers 容纳结果的List容器
+     * @param isShowedPartion 读取公开关注用户或非公开关注用户
+     * @throws IOException 网络访问或数据解析异常
+     */
+    private static void readConcernedList(CookieStore cookieToken, List<PMember> pMembers, boolean isShowedPartion) throws IOException {
+
+        //准备参数
+        List<NameValuePair> params = new ArrayList<>();
+        params.add(new BasicNameValuePair("type", "user"));
+
+        if (isShowedPartion) {
+            params.add(new BasicNameValuePair("rest", "show"));
+        } else {
+            params.add(new BasicNameValuePair("rest", "hide"));
+        }
+
+        try (CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()) {
+            //获得数据
+            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient, "https://www.pixiv.net/bookmark.php", params);
+            String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
+
+            parsePMemberFromHtml(cookieToken, pMembers, response);//解析当前页的用户
+
+
+            //检查数据分页，若存在则开始分页
+            Document document = Jsoup.parse(response);//解析html
+            Elements pageIndexElements = document.getElementsByAttributeValue("class", "_pager-complex");//尝试获取分页元素
+
+            if (!pageIndexElements.isEmpty()) {//检查是否有分页元素
+                //有分页，获取下一页
+                Element pageIndexElement = pageIndexElements.first();//获取
+                Elements nextPages = pageIndexElement.getElementsByAttributeValue("rel", "next");//尝试获取next按钮元素
+                while (!nextPages.isEmpty())//检查是否有next按钮，有则继续，无则跳出
+                {
+                    Element nextPage = nextPages.first();//获取
+                    String nextPageLink = nextPage.attr("href");//获得链接信息
+                    if (nextPageLink == null) {
+                        //没有获得链接，错误处理
+                        logger.error("error during get next page Link, null nextPageLink");
+                        logger.debug("Page Complex Element:");
+                        logger.debug(pageIndexElements.first());
+                        break;
+                    }
+                    responseEntity = NetworkUtil.httpGet(httpClient, nextPageLink, null);//访问下一页
+                    response = EntityUtils.toString(responseEntity, Consts.UTF_8);
+
+                    parsePMemberFromHtml(cookieToken, pMembers, response);//解析当前页的用户
+
+                    //获取下一页
+                    document = Jsoup.parse(response);
+                    pageIndexElements = document.getElementsByAttributeValue("class", "_pager-complex");//尝试获取分页元素
+                    pageIndexElement = pageIndexElements.first();//获取
+                    nextPages = pageIndexElement.getElementsByAttributeValue("rel", "next");//尝试获取next按钮元素
+                }
+            }
+        }
+    }
+
+    /**
+     * 解析html将获得的用户转化为PMember数组
+     * @param pMembers 结果容器
+     * @param html 格式化的html数据
+     */
+    private static void parsePMemberFromHtml(CookieStore cookieToken, List<PMember> pMembers,String html) throws IOException {
+        Document document = Jsoup.parse(html);
+        Element memberContainer = document.getElementsByAttributeValue("class","members").first();//获得储存有member的容器
+        Elements memebrElements = memberContainer.getElementsByTag("li");//获得member的列
+
+        //循环处理每一个member元素的信息
+        for (Element memberElement :
+                memebrElements ) {
+            Element element = memberElement.getElementsByAttributeValue("name","id[]").first();
+            pMembers.add(generatePMember(cookieToken,Integer.parseInt(element.attr("value"))));
+        }
+    }
 }

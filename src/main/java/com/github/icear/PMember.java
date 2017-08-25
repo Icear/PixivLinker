@@ -24,32 +24,10 @@ class PMember implements PixivMember {
     private String name;
     private byte[] image;
 
-    PMember(CookieStore cookieToken, int id){
-        //根据id进行网络访问，获取作者信息
-        List<NameValuePair> parameters = new ArrayList<>();
-        parameters.add(new BasicNameValuePair("id",String.valueOf(id)));
-
-        try(CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()) {
-            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient,"https://www.pixiv.net/member.php",parameters);
-            String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
-
-            //解析数据
-            Document document = Jsoup.parse(response);
-            Element userContainer = document.getElementsByAttributeValue("class","_unit profile-unit").first();
-            Element userElement = userContainer.getElementsByAttributeValue("class","user-link").first();
-            Element userImageElement = userElement.getElementsByAttributeValue("class","user-image").first();
-            Element userNameElement = userElement.getElementsByTag("h1").first();
-            this.id = id;
-            this.name = userNameElement.html();
-
-            String imageUrl = userImageElement.attr("src");
-            HttpEntity imageEntity = NetworkUtil.httpGet(httpClient,imageUrl,null);
-            if(imageEntity != null){
-                this.image = ConvertUtil.toByteArray(imageEntity.getContent());
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    PMember(int id, String name, byte[] image){
+        this.id = id;
+        this.name = name;
+        this.image = image;
     }
 
     @Override
@@ -65,11 +43,6 @@ class PMember implements PixivMember {
     @Override
     public byte[] getImage() {
         return image;
-    }
-
-    @Override
-    public PMember[] getConcernedList() {
-        return new PMember[0];
     }
 
     @Override
