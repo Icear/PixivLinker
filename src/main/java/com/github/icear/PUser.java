@@ -1,28 +1,9 @@
 package com.github.icear;
 
-import com.github.icear.Util.ConvertUtil;
-import com.github.icear.Util.NetworkUtil;
 import com.sun.istack.internal.NotNull;
-import org.apache.http.Consts;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
 import org.apache.http.client.CookieStore;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
-
-import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 //TODO 修改网络访问返回空值情况的异常处理
 class PUser implements PixivUser{
@@ -30,9 +11,9 @@ class PUser implements PixivUser{
     private static Logger logger = LogManager.getLogger(PUser.class.getName());
 
     private CookieStore cookieToken;//cookie令牌
-    private int id;
-    private String name;
-    private byte[] image;
+    private int id;//PixivId
+    private String name;//昵称
+    private byte[] image;//头像
 
 
     /**
@@ -109,21 +90,21 @@ class PUser implements PixivUser{
 //        logger.info("get Showed Concerned List result: " + pMembers.size());
 //        return (PMember[]) pMembers.toArray();
 //    }
-
-    @Override
-    public PMember[] getFollowedList() {
-        return new PMember[0];
-    }
-
-    @Override
-    public PWork[] getCollectionList() {
-        return new PWork[0];
-    }
-
-    @Override
-    public PWork[] getWorkList() {
-        return new PWork[0];
-    }
+//
+//    @Override
+//    public PMember[] getFollowedList() {
+//        return new PMember[0];
+//    }
+//
+//    @Override
+//    public PWork[] getCollectionList() {
+//        return new PWork[0];
+//    }
+//
+//    @Override
+//    public PWork[] getWorkList() {
+//        return new PWork[0];
+//    }
 
 //    /**
 //     * 读取用户关注的用户

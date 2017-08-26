@@ -1,6 +1,5 @@
 package com.github.icear;
 
-import com.github.icear.Util.ConvertUtil;
 import com.github.icear.Util.NetworkUtil;
 import com.google.gson.Gson;
 
@@ -41,6 +40,7 @@ import java.util.Map;
  * 5、推荐模块（可选）
  */
 
+//TODO 将读取到的多余数据适时地添加进构造器中，重载generate系列函数
 
 public class Pixiv{
     private static Logger logger = LogManager.getLogger(Pixiv.class.getName());
@@ -50,8 +50,8 @@ public class Pixiv{
     private static final int MODE_BOTH_SHOW_AND_HIDE = 887;
 
     /**
-     * 登陆函数
-     * 传入用户名与密码执行登陆，函数包含网络访问代码，建议放置在线程中执行
+     * 以账号与密码登陆一个用户
+     * 函数包含网络访问代码，建议放置在线程中执行
      * @param account 用户名或邮箱
      * @param password 密码
      * @return 返回登陆结果封装类
@@ -182,7 +182,7 @@ public class Pixiv{
             if(status.equals("success")){
                 //登陆成功
                 result.setSucceed(true);
-                result.setPixivUser(generatePUser(cookieStore));
+                result.setPixivUser(PixivBuilder.generatePUser(cookieStore));
                 logger.info("Login result: succeed");
             }
 
@@ -221,11 +221,22 @@ public class Pixiv{
     }
 
     /**
-     * 获得用户自身的关注列表
-     * @param user 用户对象
+     * 以指定用户的身份读取目标会员的信息
+     * @param user 用户
+     * @param pixivId 目标会员的ID
+     * @return 会员信息
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivMember getMember(@NotNull PixivUser user, @NotNull int pixivId) throws IOException {
+        return PixivBuilder.generatePMember(user.getCookieToken(),pixivId);
+    }
+
+    /**
+     * 获得用户的关注列表
+     * @param user 用户
      * @param mode 读取模式,传入预定义的常量，MODE_SHOW表示读取公开的关注列表，
      *             MODE_HIDE表示读取隐藏的关注列表，MODE_BOTH_SHOW_AND_HIDE表示读取两者（公开部分在前）
-     * @return 用户关注列表
+     * @return 用户关注的会员的列表
      * @throws IOException 网络IO或数据处理异常
      */
     public static PixivMember[] getConcernedMemberList(@NotNull PixivUser user, @NotNull int mode) throws IOException {
@@ -255,8 +266,8 @@ public class Pixiv{
     }
 
     /**
-     * 以用户的身份获得某个成员的关注列表
-     * @param user 用户对象
+     * 以指定用户的身份获得某个成员的关注列表
+     * @param user 用户
      * @param member 要获取列表的目标成员
      * @return 用户关注列表
      * @throws IOException 网络IO或数据处理异常
@@ -266,101 +277,71 @@ public class Pixiv{
         return new PMember[0];
     }
 
-
     /**
-     * 以user的身份读取id目标的会员信息
-     * @param user user对象
-     * @param pixivId pixivId
-     * @return 会员信息对象PixivMember
+     * 获得用户的粉丝列表
+     * @param user 用户
+     * @return 用户的粉丝会员的列表
      * @throws IOException 网络IO或数据处理异常
      */
-    public static PixivMember getMember(@NotNull PixivUser user,@NotNull int pixivId) throws IOException {
-        return generatePMember(user.getCookieToken(),pixivId);
-    }
-
-
-
-
-
-
-
-
-    /**
-     * 根据用户令牌生成PUser类
-     * @param cookieToken cookie令牌
-     * @return PUser对象
-     * @throws IOException 网络IO或数据处理异常
-     */
-    private static PUser generatePUser(@NotNull CookieStore cookieToken) throws IOException {
-        int id = -1;
-        String name = null;
-        byte[] image = null;
-
-        //使用cookie进入P站首页，即可获得用户信息
-        try(CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()){//生成httpClient
-            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient,"https://www.pixiv.net/",null);
-            String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
-            Document document = Jsoup.parse(response);
-            Element userProfile = document.getElementsByAttributeValue("class","profile").first();
-            Element userImageContainer = userProfile.getElementsByAttributeValue("class","_user-icon size-40 cover-texture js-click-trackable-later").first();
-            Element userInfoContainer = userProfile.getElementsByAttributeValue("class","user-name js-click-trackable-later").first();
-
-            //获得用户ID
-
-            id = Integer.parseInt(userInfoContainer.attr("href").substring("https://www.pixiv.net/member.php?id=".length() - 1));//截取id
-            //获得用户名
-            name = userInfoContainer.html();
-
-            String imageUrlTemp = userImageContainer.attr("style");
-            String imageUrl = imageUrlTemp.substring("background-image: url(".length() - 1,imageUrlTemp.length() - 2);//截取
-            HttpEntity imageEntity = NetworkUtil.httpGet(httpClient,imageUrl,null);
-            if(imageEntity != null){
-                //获得用户头像
-                image = ConvertUtil.toByteArray(imageEntity.getContent());
-            }
-        }
-        return new PUser(cookieToken,id,name,image);
+    public static PixivMember[] getFollowList(@NotNull PixivUser user) throws IOException{
+        //TODO 未完成
+        return new PMember[0];
     }
 
     /**
-     * 根据用户令牌和目标会员id生成PMember类
-     * @param cookieToken cookie令牌
-     * @return PUser对象
+     * 以指定用户的身份读取目标会员的粉丝列表
+     * @param user 用户
+     * @param member 目标会员
+     * @return 目标会员的粉丝列表
      * @throws IOException 网络IO或数据处理异常
      */
-    private static PMember generatePMember(CookieStore cookieToken, int id) throws IOException {
-        String name = null;
-        byte[] image = null;
-
-        //根据id进行网络访问，获取作者信息
-        List<NameValuePair> parameters = new ArrayList<>();
-        parameters.add(new BasicNameValuePair("id",String.valueOf(id)));
-
-        try(CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()) {
-            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient,"https://www.pixiv.net/member.php",parameters);
-            String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
-
-            //解析数据
-            Document document = Jsoup.parse(response);
-            Element userContainer = document.getElementsByAttributeValue("class","_unit profile-unit").first();
-            Element userElement = userContainer.getElementsByAttributeValue("class","user-link").first();
-            Element userImageElement = userElement.getElementsByAttributeValue("class","user-image").first();
-            Element userNameElement = userElement.getElementsByTag("h1").first();
-            name = userNameElement.html();
-
-            String imageUrl = userImageElement.attr("src");
-            HttpEntity imageEntity = NetworkUtil.httpGet(httpClient,imageUrl,null);
-            if(imageEntity != null){
-                image = ConvertUtil.toByteArray(imageEntity.getContent());
-            }
-        }
-
-        return new PMember(id,name,image);
+    public static PixivMember[] getFollowList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
+        //TODO 未完成
+        return new PMember[0];
     }
 
+    /**
+     * 获取用户的收藏列表
+     * @param user 用户
+     * @return 收藏的作品列表
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivWork[] getCollectionList(@NotNull PixivUser user) throws IOException{
+        //TODO 未完成
+        return new PWork[0];
+    }
 
+    /**
+     * 以指定用户的身份读取获取目标会员的收藏列表
+     * @param user 用户
+     * @param member 目标会员
+     * @return 目标会员的收藏列表
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivWork[] getCollectionList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
+        //TODO 未完成
+        return new PWork[0];
+    }
 
+    /**
+     * 获取用户的作品列表
+     * @param user 用户
+     * @return 用户的作品列表
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivWork[] getWorkList(@NotNull PixivUser user) throws IOException{
+        //TODO 未完成
+        return new PWork[0];
+    }
 
+    /**
+     * 获得用户作品列表
+     * @return 会员
+     */
+    public static PixivWork[] getWorkList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
+        //TODO 未完成
+        return new PWork[0];
+    }
 
 
     /**
@@ -428,16 +409,20 @@ public class Pixiv{
      * @param pMembers 结果容器
      * @param html 格式化的html数据
      */
-    private static void parsePMemberFromHtml(CookieStore cookieToken, List<PMember> pMembers,String html) throws IOException {
+    private static void parsePMemberFromHtml(CookieStore cookieToken, List<PMember> pMembers, String html) throws IOException {
         Document document = Jsoup.parse(html);
-        Element memberContainer = document.getElementsByAttributeValue("class","members").first();//获得储存有member的容器
-        Elements memebrElements = memberContainer.getElementsByTag("li");//获得member的列
+        Element memberContainer = document.getElementsByAttributeValue("class", "members").first();//获得储存有member的容器
+        Elements memberElements = memberContainer.getElementsByTag("li");//获得member的列
 
         //循环处理每一个member元素的信息
         for (Element memberElement :
-                memebrElements ) {
-            Element element = memberElement.getElementsByAttributeValue("name","id[]").first();
-            pMembers.add(generatePMember(cookieToken,Integer.parseInt(element.attr("value"))));
+                memberElements) {
+            Element userDataElement = memberElement.getElementsByAttributeValue("class", "userdata").first();//获得userData-DIV元素
+            Element userDataLinkElement = userDataElement.getElementsByAttributeValue("class","ui-profile-popup").first();
+            pMembers.add(PixivBuilder.generatePMember(cookieToken, Integer.parseInt(userDataLinkElement.attr("data-user_id"))));
         }
     }
+
+
+
 }

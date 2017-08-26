@@ -31,22 +31,22 @@ public interface PixivMember{
 //     * @return 被关注的会员的数组
 //     */
 //    PixivMember[] readConcernedList() throws IOException;//获得会员关注列表
-
-    /**
-     * 获得会员粉丝列表
-     * @return 粉丝会员的数组
-     */
-    PixivMember[] getFollowedList();//获得会员粉丝列表
-
-    /**
-     * 获得会员收藏作品列表
-     * @return 会员收藏的作品的数组
-     */
-    PixivWork[] getCollectionList();//获得会员收藏作品列表
-
-    /**
-     * 获得用户作品列表
-     * @return 会员
-     */
-    PixivWork[] getWorkList();//获得会员作品列表
+//
+//    /**
+//     * 获得会员粉丝列表
+//     * @return 粉丝会员的数组
+//     */
+//    PixivMember[] getFollowedList();//获得会员粉丝列表
+//
+//    /**
+//     * 获得会员收藏作品列表
+//     * @return 会员收藏的作品的数组
+//     */
+//    PixivWork[] getCollectionList();//获得会员收藏作品列表
+//
+//    /**
+//     * 获得用户作品列表
+//     * @return 会员
+//     */
+//    PixivWork[] getWorkList();//获得会员作品列表
 }
