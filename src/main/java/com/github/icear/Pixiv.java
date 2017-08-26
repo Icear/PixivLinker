@@ -243,20 +243,37 @@ public class Pixiv{
         //登陆身份下查看自己的关注列表，公开关注
         List<PMember> pMembers = new ArrayList<>();
 
+        //准备参数
+        List<NameValuePair> params = new ArrayList<>();
+
         switch (mode){
             case MODE_BOTH_SHOW_AND_HIDE:
+                logger.info("mode: MODE_BOTH_SHOW_AND_HIDE");
                 /*获得公开关注的用户*/
-                readConcernedList(user.getCookieToken(),pMembers,true);
+                params.add(new BasicNameValuePair("type", "user"));
+                params.add(new BasicNameValuePair("rest", "show"));
+                getDataAndParsePMember(user.getCookieToken(), pMembers, params);
+
+                params.clear();
+
                 /*获得隐藏关注的用户*/
-                readConcernedList(user.getCookieToken(),pMembers,false);
+                params.add(new BasicNameValuePair("type", "user"));
+                params.add(new BasicNameValuePair("rest", "hide"));
+                getDataAndParsePMember(user.getCookieToken(), pMembers, params);
                 break;
             case MODE_SHOW:
+                logger.info("mode: MODE_SHOW");
                 /*获得公开关注的用户*/
-                readConcernedList(user.getCookieToken(),pMembers,true);
+                params.add(new BasicNameValuePair("type", "user"));
+                params.add(new BasicNameValuePair("rest", "show"));
+                getDataAndParsePMember(user.getCookieToken(), pMembers, params);
                 break;
             case MODE_HIDE:
+                logger.info("mode: MODE_HIDE");
                 /*获得隐藏关注的用户*/
-                readConcernedList(user.getCookieToken(),pMembers,false);
+                params.add(new BasicNameValuePair("type", "user"));
+                params.add(new BasicNameValuePair("rest", "hide"));
+                getDataAndParsePMember(user.getCookieToken(), pMembers, params);
                 break;
         }
 
@@ -273,8 +290,20 @@ public class Pixiv{
      * @throws IOException 网络IO或数据处理异常
      */
     public static PixivMember[] getConcernedMemberList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
-        //TODO 未完成
-        return new PMember[0];
+        /* 准备容器 */
+        List<PMember> pMembers = new ArrayList<>();
+
+        /* 准备参数 */
+        List<NameValuePair> params = new ArrayList<>();
+        params.add(new BasicNameValuePair("type","user"));
+        params.add(new BasicNameValuePair("id", String.valueOf(member.getId())));
+
+        /* 开始读取 */
+        getDataAndParsePMember(user.getCookieToken(), pMembers, params);
+
+        /* 返回 */
+        logger.info("get Member Concerned List result: " + pMembers.size());
+        return (PMember[]) pMembers.toArray();
     }
 
     /**
@@ -344,24 +373,17 @@ public class Pixiv{
     }
 
 
+
+
     /**
-     * 读取用户关注的用户
-     * @param pMembers 容纳结果的List容器
-     * @param isShowedPartion 读取公开关注用户或非公开关注用户
-     * @throws IOException 网络访问或数据解析异常
+     * 携带令牌发送Get请求携带指定params参数，读取数据并解析PMember
+     * @param cookieToken cookie令牌
+     * @param pMembers PMember结果容器
+     * @param params get参数
+     * @throws IOException 网络IO或数据处理异常
      */
-    private static void readConcernedList(CookieStore cookieToken, List<PMember> pMembers, boolean isShowedPartion) throws IOException {
-
-        //准备参数
-        List<NameValuePair> params = new ArrayList<>();
-        params.add(new BasicNameValuePair("type", "user"));
-
-        if (isShowedPartion) {
-            params.add(new BasicNameValuePair("rest", "show"));
-        } else {
-            params.add(new BasicNameValuePair("rest", "hide"));
-        }
-
+    private static void getDataAndParsePMember(CookieStore cookieToken, List<PMember> pMembers
+            , List<NameValuePair> params) throws IOException {
         try (CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()) {
             //获得数据
             HttpEntity responseEntity = NetworkUtil.httpGet(httpClient, "https://www.pixiv.net/bookmark.php", params);
