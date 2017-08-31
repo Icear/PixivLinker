@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-
+//TODO 把Pixiv数据类的构造形式改成set以支持不同模式下的构造
 /**
  * Created by icear
  * 包入口
@@ -182,7 +182,7 @@ public class Pixiv{
             if(status.equals("success")){
                 //登陆成功
                 result.setSucceed(true);
-                result.setPixivUser(PixivBuilder.generatePUser(cookieStore));
+                result.setPixivUser(PUser.generatePUser(cookieStore));
                 logger.info("Login result: succeed");
             }
 
@@ -228,7 +228,7 @@ public class Pixiv{
      * @throws IOException 网络IO或数据处理异常
      */
     public static PixivMember getMember(@NotNull PixivUser user, @NotNull int pixivId) throws IOException {
-        return PixivBuilder.generatePMember(user.getCookieToken(),pixivId);
+        return PMember.generatePMember(user.getCookieToken(),pixivId);
     }
 
     /**
@@ -313,21 +313,21 @@ public class Pixiv{
      * @throws IOException 网络IO或数据处理异常
      */
     public static PixivMember[] getFollowList(@NotNull PixivUser user) throws IOException{
-        //TODO 未完成
+        //TODO 未完成，素材不够
         return new PMember[0];
     }
 
-    /**
-     * 以指定用户的身份读取目标会员的粉丝列表
-     * @param user 用户
-     * @param member 目标会员
-     * @return 目标会员的粉丝列表
-     * @throws IOException 网络IO或数据处理异常
-     */
-    public static PixivMember[] getFollowList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
-        //TODO 未完成
-        return new PMember[0];
-    }
+//    /**
+//     * 以指定用户的身份读取目标会员的粉丝列表
+//     * @param user 用户
+//     * @param member 目标会员
+//     * @return 目标会员的粉丝列表
+//     * @throws IOException 网络IO或数据处理异常
+//     */
+//    public static PixivMember[] getFollowList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
+//        //TODO 未完成
+//        return new PMember[0];
+//    }
 
     /**
      * 获取用户的收藏列表
@@ -363,16 +363,30 @@ public class Pixiv{
         return new PWork[0];
     }
 
+
     /**
-     * 获得用户作品列表
-     * @return 会员
+     * 以指定用户身份获得目标会员的作品列表
+     * @param user 用户
+     * @param member 目标会员
+     * @return 作品列表
+     * @throws IOException 网络IO或数据处理异常
      */
     public static PixivWork[] getWorkList(@NotNull PixivUser user, @NotNull PixivMember member) throws IOException{
         //TODO 未完成
         return new PWork[0];
     }
 
-
+    /**
+     * 以指定用户身份获得目标作品的作者信息
+     * @param user 用户
+     * @param work 目标作品
+     * @return 作者信息
+     * @throws IOException 网络IO或数据处理异常
+     */
+    public static PixivMember getWorkAuthor(@NotNull PixivUser user, @NotNull PixivWork work) throws IOException{
+        //TODO 未完成
+        return null;
+    }
 
 
     /**
@@ -428,8 +442,10 @@ public class Pixiv{
 
     /**
      * 解析html将获得的用户转化为PMember数组
+     * @param cookieToken cookie令牌
      * @param pMembers 结果容器
      * @param html 格式化的html数据
+     * @throws IOException 网络IO或数据处理异常
      */
     private static void parsePMemberFromHtml(CookieStore cookieToken, List<PMember> pMembers, String html) throws IOException {
         Document document = Jsoup.parse(html);
@@ -441,10 +457,80 @@ public class Pixiv{
                 memberElements) {
             Element userDataElement = memberElement.getElementsByAttributeValue("class", "userdata").first();//获得userData-DIV元素
             Element userDataLinkElement = userDataElement.getElementsByAttributeValue("class","ui-profile-popup").first();
-            pMembers.add(PixivBuilder.generatePMember(cookieToken, Integer.parseInt(userDataLinkElement.attr("data-user_id"))));
+            pMembers.add(PMember.generatePMember(cookieToken, Integer.parseInt(userDataLinkElement.attr("data-user_id"))));
         }
     }
 
 
 
+    /**
+     * 携带令牌发送Get请求携带指定params参数，读取数据并解析PWork
+     * @param cookieToken cookie令牌
+     * @param PWorks PWork结果容器
+     * @param params get参数
+     * @throws IOException 网络IO或数据处理异常
+     */
+    private static void getDataAndParsePWork(CookieStore cookieToken, List<PWork> PWorks
+            , List<NameValuePair> params) throws IOException {
+        try (CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()) {
+            //获得数据
+            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient, "https://www.pixiv.net/bookmark.php", params);
+            String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
+
+            parsePWorkFromHtml(cookieToken, PWorks, response);//解析当前页的作品
+
+
+            //检查数据分页，若存在则开始分页
+            Document document = Jsoup.parse(response);//解析html
+            Elements pageIndexElements = document.getElementsByAttributeValue("class", "pager-container");//尝试获取分页元素
+
+            if (!pageIndexElements.isEmpty()) {//检查是否有分页元素
+                //有分页，获取下一页
+                Element pageIndexElement = pageIndexElements.first();//获取
+                Elements nextPages = pageIndexElement.getElementsByAttributeValue("rel", "next");//尝试获取next按钮元素
+                while (!nextPages.isEmpty())//检查是否有next按钮，有则继续，无则跳出
+                {
+                    Element nextPage = nextPages.first();//获取
+                    String nextPageLink = nextPage.attr("href");//获得链接信息
+                    if (nextPageLink == null) {
+                        //没有获得链接，错误处理
+                        logger.error("error during get next page Link, null nextPageLink");
+                        logger.debug("Page Complex Element:");
+                        logger.debug(pageIndexElements.first());
+                        break;
+                    }
+                    responseEntity = NetworkUtil.httpGet(httpClient, nextPageLink, null);//访问下一页
+                    response = EntityUtils.toString(responseEntity, Consts.UTF_8);
+
+                    parsePWorkFromHtml(cookieToken, PWorks, response);//解析当前页的作品
+
+                    //获取下一页
+                    document = Jsoup.parse(response);
+                    pageIndexElements = document.getElementsByAttributeValue("class", "pager-container");//尝试获取分页元素
+                    pageIndexElement = pageIndexElements.first();//获取
+                    nextPages = pageIndexElement.getElementsByAttributeValue("rel", "next");//尝试获取next按钮元素
+                }
+            }
+        }
+    }
+
+
+    /**
+     * 解析html将获得的用户转化为PWork数组
+     * @param cookieToken cookie令牌
+     * @param PWorks 结果容器
+     * @param html 格式化的html数据
+     * @throws IOException 网络IO或数据处理异常
+     */
+    private static void parsePWorkFromHtml(CookieStore cookieToken, List<PWork> PWorks, String html) throws IOException {
+        Document document = Jsoup.parse(html);
+        Element memberContainer = document.getElementsByAttributeValue("class", "display_editable_works").first();//获得储存有work的容器
+        Elements memberElements = memberContainer.getElementsByAttributeValue("class","image-item");//获得work的列
+
+        //循环处理每一个member元素的信息
+        for (Element memberElement :
+                memberElements) {
+            //TODO fill
+        }
+    }
 }
