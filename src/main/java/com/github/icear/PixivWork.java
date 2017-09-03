@@ -31,6 +31,24 @@ public interface PixivWork {
     String[] getWorkTag();
 
     /**
+     * 获得作品的浏览量
+     * @return 浏览量
+     */
+    long getPageviews();
+
+    /**
+     * 获得作品的赞数
+     * @return 赞数
+     */
+    long getThumbsUp();
+
+    /**
+     * 获得作品预览图
+     * @return 预览图
+     */
+    byte[] getThumbnail();
+
+    /**
      * 获得创作工具
      * @return 创作工具
      */
