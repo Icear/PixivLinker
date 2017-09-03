@@ -12,6 +12,16 @@ import java.time.LocalDateTime;
  */
 public class PWork implements PixivWork{
 
+
+
+    private int id;
+    private String name;
+    private LocalDateTime createTime;
+    private String[] workTag;
+    private String creativeTool;
+    private PixivImage[] workImage;
+
+
     /**
      * 根据用户令牌和目标会员id生成PMember类
      * @param cookieToken cookie令牌
@@ -20,36 +30,60 @@ public class PWork implements PixivWork{
      * @throws IOException 网络IO或数据处理异常
      */
     static PWork generatePWork(CookieStore cookieToken, int id) throws IOException{
-        return new PWork();
+
+    }
+
+    private void setId(int id) {
+        this.id = id;
+    }
+
+    private void setName(String name) {
+        this.name = name;
+    }
+
+    private void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
+    }
+
+    private void setWorkTag(String[] workTag) {
+        this.workTag = workTag;
+    }
+
+    private void setCreativeTool(String creativeTool) {
+        this.creativeTool = creativeTool;
+    }
+
+    private void setWorkImage(PixivImage[] workImage) {
+        this.workImage = workImage;
     }
 
     @Override
     public int getId() {
-        return 0;
+        return id;
     }
 
     @Override
     public String getName() {
-        return null;
+        return name;
     }
 
     @Override
     public LocalDateTime getCreateTime() {
-        return null;
+        return createTime;
     }
 
     @Override
     public String[] getWorkTag() {
-        return new String[0];
+        return workTag;
     }
 
     @Override
     public String getCreativeTool() {
-        return null;
+        return creativeTool;
     }
 
     @Override
     public PixivImage[] getWorkImage() {
-        return new PixivImage[0];
+        return workImage;
     }
 }

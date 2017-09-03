@@ -29,26 +29,16 @@ class PUser implements PixivUser{
 
 
     /**
-     * 构造一个PUser对象，传入所需的信息
-     * @param cookieToken cookie令牌
-     * @param id pixivId
-     * @param name 昵称
-     * @param image 头像
-     */
-    private PUser(CookieStore cookieToken, @NotNull int id,@NotNull String name, byte[] image){
-        this.cookieToken = cookieToken;
-        this.id = id;
-        this.name = name;
-        this.image = image;
-    }
-
-    /**
      * 根据用户令牌生成PUser类
      * @param cookieToken cookie令牌
      * @return PUser对象
      * @throws IOException 网络IO或数据处理异常
      */
     static PUser generatePUser(@NotNull CookieStore cookieToken) throws IOException {
+        PUser pUser = new PUser();
+
+        pUser.setCookieToken(cookieToken);//保存CookieToken
+
         int id = -1;
         String name = null;
         byte[] image = null;
@@ -63,10 +53,13 @@ class PUser implements PixivUser{
             Element userInfoContainer = userProfile.getElementsByAttributeValue("class","user-name js-click-trackable-later").first();
 
             //获得用户ID
-
             id = Integer.parseInt(userInfoContainer.attr("href").substring("https://www.pixiv.net/member.php?id=".length() - 1));//截取id
+            pUser.setId(id);//保存id
+
+
             //获得用户名
             name = userInfoContainer.html();
+            pUser.setName(name);//保存name
 
             String imageUrlTemp = userImageContainer.attr("style");
             String imageUrl = imageUrlTemp.substring("background-image: url(".length() - 1,imageUrlTemp.length() - 2);//截取
@@ -74,9 +67,26 @@ class PUser implements PixivUser{
             if(imageEntity != null){
                 //获得用户头像
                 image = ConvertUtil.toByteArray(imageEntity.getContent());
+                pUser.setImage(image);//保存image
             }
         }
-        return new PUser(cookieToken,id,name,image);
+        return pUser;
+    }
+
+    private void setCookieToken(CookieStore cookieToken) {
+        this.cookieToken = cookieToken;
+    }
+
+    private void setId(int id) {
+        this.id = id;
+    }
+
+    private void setName(String name) {
+        this.name = name;
+    }
+
+    private void setImage(byte[] image) {
+        this.image = image;
     }
 
     @Override

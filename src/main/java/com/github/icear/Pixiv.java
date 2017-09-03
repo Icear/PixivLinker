@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-//TODO 把Pixiv数据类的构造形式改成set以支持不同模式下的构造
 /**
  * Created by icear
  * 包入口

@@ -10,6 +10,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -20,15 +22,12 @@ import java.util.List;
 
 class PMember implements PixivMember {
 
+    private Logger logger = LogManager.getLogger(PMember.class.getName());
+
     private int id;
     private String name;
     private byte[] image;
 
-    PMember(int id, String name, byte[] image){
-        this.id = id;
-        this.name = name;
-        this.image = image;
-    }
 
     /**
      * 根据用户令牌和目标会员id生成PMember类
@@ -38,8 +37,9 @@ class PMember implements PixivMember {
      * @throws IOException 网络IO或数据处理异常
      */
     static PMember generatePMember(CookieStore cookieToken, int id) throws IOException {
-        String name = null;
-        byte[] image = null;
+        PMember pMember = new PMember();
+
+        pMember.setId(id);//保存id
 
         //根据id进行网络访问，获取作者信息
         List<NameValuePair> parameters = new ArrayList<>();
@@ -55,16 +55,28 @@ class PMember implements PixivMember {
             Element userElement = userContainer.getElementsByAttributeValue("class","user-link").first();
             Element userImageElement = userElement.getElementsByAttributeValue("class","user-image").first();
             Element userNameElement = userElement.getElementsByTag("h1").first();
-            name = userNameElement.html();
+            pMember.setName(userNameElement.html());//保存name
 
             String imageUrl = userImageElement.attr("src");
             HttpEntity imageEntity = NetworkUtil.httpGet(httpClient,imageUrl,null);
             if(imageEntity != null){
-                image = ConvertUtil.toByteArray(imageEntity.getContent());
+                pMember.setImage(ConvertUtil.toByteArray(imageEntity.getContent()));//保存image
             }
         }
 
-        return new PMember(id,name,image);
+        return pMember;
+    }
+
+    private void setId(int id) {
+        this.id = id;
+    }
+
+    private void setName(String name) {
+        this.name = name;
+    }
+
+    private void setImage(byte[] image) {
+        this.image = image;
     }
 
     @Override
