@@ -16,6 +16,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import javax.imageio.ImageIO;
+import javax.print.Doc;
+import javax.swing.text.html.parser.Entity;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -55,13 +57,13 @@ public class PWork implements PixivWork{
         PWork pWork = new PWork();
 
 
-        List<NameValuePair> paramaters = new ArrayList<>();
+        List<NameValuePair> parameters = new ArrayList<>();
 
-        paramaters.add(new BasicNameValuePair("mode","medium"));
-        paramaters.add(new BasicNameValuePair("illust_id",String.valueOf(id)));
+        parameters.add(new BasicNameValuePair("mode","medium"));
+        parameters.add(new BasicNameValuePair("illust_id",String.valueOf(id)));
 
         try(CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()){
-            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient, "https://www.pixiv.net/member_illust.php", paramaters);
+            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient, "https://www.pixiv.net/member_illust.php", parameters);
             String response = EntityUtils.toString(responseEntity, Consts.UTF_8);
 
             /* 解析数据 */
@@ -114,17 +116,12 @@ public class PWork implements PixivWork{
                 //单张图片
                 Element originImageContainer = document.getElementsByAttributeValue("class","_illust_modal _hidden ui-modal-close-box").first();
                 Element originImage = originImageContainer.getElementsByAttributeValue("class","original-image").first();
-                HttpEntity imageEntity = NetworkUtil.httpGet(httpClient,originImage.attr("data-src"),null);
-                byte[] image = ConvertUtil.toByteArray(imageEntity.getContent());
-
-                //获得图片尺寸
-                ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(image);
-                BufferedImage bufferedImage = ImageIO.read(byteArrayInputStream);
-                imageList.add(new PixivImage(image, bufferedImage.getWidth(), bufferedImage.getHeight(), originImage.attr("data-src")));
+                imageList.add(PixivImage.generatePiivImage(cookieToken,originImage.attr("data-src")));
 
             }else{
                 //多张图片
-                imageList.add(new PixivImage(null,0,0,null));
+
+                readPixivImagesInMangaMode(cookieToken,id,imageList);
             }
             pWork.setWorkImage((PixivImage[]) imageList.toArray());
         }
@@ -208,10 +205,36 @@ public class PWork implements PixivWork{
         return creativeTool;
     }
 
-
-
     @Override
     public PixivImage[] getWorkImage() {
         return workImage;
+    }
+
+
+    private static void readPixivImagesInMangaMode(CookieStore cookieToken, int id, List<PixivImage> imageList) throws IOException {
+        try(CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieToken).build()){
+            List<NameValuePair> parameters = new ArrayList<>();
+            parameters.add(new BasicNameValuePair("mode","manga"));
+            parameters.add(new BasicNameValuePair("illust_id",String.valueOf(id)));
+            HttpEntity responseEntity = NetworkUtil.httpGet(httpClient,"https://www.pixiv.net/member_illust.php",parameters);
+            String response = EntityUtils.toString(responseEntity,Consts.UTF_8);
+            
+            //解析html
+            Document document = Jsoup.parse(response);
+            Elements ImagesContainer = document.getElementsByAttributeValue("class","item-container");
+            for (Element ImageContainer :
+                    ImagesContainer) {
+                Element ImageLink = ImageContainer.getElementsByAttributeValue("class", "full-size-container _ui-tooltip").first();
+                HttpEntity imageResponseEntity = NetworkUtil.httpGet(httpClient,ImageLink.attr("href"),null);
+                parsePixivImageInMangaMode(cookieToken, EntityUtils.toString(imageResponseEntity,Consts.UTF_8),imageList);
+            }
+        }
+
+    }
+
+    private static void parsePixivImageInMangaMode(CookieStore cookieToken, String html, List<PixivImage> imageList) throws IOException {
+        Document document = Jsoup.parse(html);
+        Element image = document.getElementsByTag("img").first();
+        imageList.add(PixivImage.generatePiivImage(cookieToken,image.attr("src")));
     }
 }
